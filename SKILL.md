@@ -1,155 +1,164 @@
 ---
 name: code-review-expert
-description: "Expert code review of current git changes with a senior engineer lens. Detects SOLID violations, security risks, and proposes actionable improvements."
+description: "基于 SVN 的专家级代码审核，以资深工程师视角审核本地变更。检测 SOLID 原则违反、安全风险，并提供可操作的改进建议。"
 ---
 
 # Code Review Expert
 
 ## Overview
 
-Perform a structured review of the current git changes with focus on SOLID, architecture, removal candidates, and security risks. Default to review-only output unless the user asks to implement changes.
+对当前的 SVN 本地变更进行结构化审核，重点关注 SOLID 原则、架构设计、可移除代码和安全风险。默认仅输出审核报告，除非用户明确要求实施修改。
 
 ## Severity Levels
 
-| Level | Name | Description | Action |
+| 级别 | 名称 | 描述 | 行动 |
 |-------|------|-------------|--------|
-| **P0** | Critical | Security vulnerability, data loss risk, correctness bug | Must block merge |
-| **P1** | High | Logic error, significant SOLID violation, performance regression | Should fix before merge |
-| **P2** | Medium | Code smell, maintainability concern, minor SOLID violation | Fix in this PR or create follow-up |
-| **P3** | Low | Style, naming, minor suggestion | Optional improvement |
+| **P0** | 严重 | 安全漏洞、数据丢失风险、正确性缺陷 | 必须阻止提交 |
+| **P2** | 中等 | 代码异味、可维护性问题、轻微 SOLID 违反 | 本次或后续迭代修复 |
+| **P3** | 低 | 风格、命名、次要建议 | 可选改进 |
 
 ## Workflow
 
 ### 1) Preflight context
 
-- Use `git status -sb`, `git diff --stat`, and `git diff` to scope changes.
-- If needed, use `rg` or `grep` to find related modules, usages, and contracts.
-- Identify entry points, ownership boundaries, and critical paths (auth, payments, data writes, network).
+- 使用 `svn status` 获取文件状态
+- 使用 `svn diff <file>` 获取文件差异内容
+- 如需要，使用 `rg` 或 `grep` 查找相关模块、用法和接口定义
+- 识别入口点、所有权边界和关键路径（认证、支付、数据写入、网络）
 
-**Edge cases:**
-- **No changes**: If `git diff` is empty, inform user and ask if they want to review staged changes or a specific commit range.
-- **Large diff (>500 lines)**: Summarize by file first, then review in batches by module/feature area.
-- **Mixed concerns**: Group findings by logical feature, not just file order.
+**边界情况处理：**
+- **无变更**：如果 `svn status` 没有显示修改文件，通知用户并确认是否需要审核特定 changelist
+- **大型 diff（>500 行）**：先按文件汇总变更摘要，然后按模块/功能区域分批审核
+- **混合关注点**：按逻辑功能分组发现的问题，而不是仅按文件顺序
+
+**Changelist 支持：**
+- 提取用户输入的提示词中作为 changelist 搜索关键词。
+- 执行 `svn status` 解析所有可用 changelist
+- 进行模糊匹配：
+  - 无匹配：显示可用 changelist 列表
+  - 单个匹配：直接使用该 changelist
+  - 多个匹配：提示用户选择更具体的关键词
+- 使用 `svn status --changelist "<name>"` 过滤文件
 
 ### 2) SOLID + architecture smells
 
-- Load `references/solid-checklist.md` for specific prompts.
-- Look for:
-  - **SRP**: Overloaded modules with unrelated responsibilities.
-  - **OCP**: Frequent edits to add behavior instead of extension points.
-  - **LSP**: Subclasses that break expectations or require type checks.
-  - **ISP**: Wide interfaces with unused methods.
-  - **DIP**: High-level logic tied to low-level implementations.
-- When you propose a refactor, explain *why* it improves cohesion/coupling and outline a minimal, safe split.
-- If refactor is non-trivial, propose an incremental plan instead of a large rewrite.
+- 加载 `references/solid-checklist.md` 获取具体检查提示
+- 检查：
+  - **SRP（单一职责）**：包含无关职责的过度加载模块
+  - **OCP（开闭原则）**：频繁编辑以添加行为而非使用扩展点
+  - **LSP（里氏替换）**：破坏预期或需要类型检查的子类
+  - **ISP（接口隔离）**：包含未使用方法的宽接口
+  - **DIP（依赖倒置）**：高层逻辑与低层实现紧耦合
+- 提出重构时，解释*为什么*能改进内聚/耦合，并概述最小、安全的拆分方案
+- 如果重构不简单，提出增量计划而非大规模重写
 
 ### 3) Removal candidates + iteration plan
 
-- Load `references/removal-plan.md` for template.
-- Identify code that is unused, redundant, or feature-flagged off.
-- Distinguish **safe delete now** vs **defer with plan**.
-- Provide a follow-up plan with concrete steps and checkpoints (tests/metrics).
+- 加载 `references/removal-plan.md` 获取模板
+- 识别未使用、冗余或功能开关关闭的代码
+- 区分**现在可安全删除** vs **需要计划延后删除**
+- 提供后续计划，包含具体步骤和检查点（测试/指标）
 
 ### 4) Security and reliability scan
 
-- Load `references/security-checklist.md` for coverage.
-- Check for:
-  - XSS, injection (SQL/NoSQL/command), SSRF, path traversal
-  - AuthZ/AuthN gaps, missing tenancy checks
-  - Secret leakage or API keys in logs/env/files
-  - Rate limits, unbounded loops, CPU/memory hotspots
-  - Unsafe deserialization, weak crypto, insecure defaults
-  - **Race conditions**: concurrent access, check-then-act, TOCTOU, missing locks
-- Call out both **exploitability** and **impact**.
+- 加载 `references/security-checklist.md` 获取覆盖范围
+- 检查：
+  - XSS、注入（SQL/NoSQL/命令）、SSRF、路径遍历
+  - 认证/授权缺失、租户检查缺失
+  - 日志/环境/文件中的密钥泄露或 API 密钥
+  - 速率限制、无限循环、CPU/内存热点
+  - 不安全反序列化、弱加密、不安全默认值
+  - **竞态条件**：并发访问、检查后执行、TOCTOU、锁缺失
+- 同时指出**可利用性**和**影响**
 
 ### 5) Code quality scan
 
-- Load `references/code-quality-checklist.md` for coverage.
-- Check for:
-  - **Error handling**: swallowed exceptions, overly broad catch, missing error handling, async errors
-  - **Performance**: N+1 queries, CPU-intensive ops in hot paths, missing cache, unbounded memory
-  - **Boundary conditions**: null/undefined handling, empty collections, numeric boundaries, off-by-one
-- Flag issues that may cause silent failures or production incidents.
+- 加载 `references/code-quality-checklist.md` 获取覆盖范围
+- 检查：
+  - **错误处理**：吞掉异常、过度广泛的 catch、错误处理缺失、异步错误
+  - **性能**：N+1 查询、热路径中的 CPU 密集操作、缓存缺失、无限内存
+  - **边界条件**：null/undefined 处理、空集合、数值边界、差一错误
+- 标记可能导致静默失败或生产事故的问题
 
 ### 6) Output format
 
-Structure your review as follows:
+按以下结构组织审核报告：
 
 ```markdown
-## Code Review Summary
+## 代码审核报告
 
-**Files reviewed**: X files, Y lines changed
-**Overall assessment**: [APPROVE / REQUEST_CHANGES / COMMENT]
-
----
-
-## Findings
-
-### P0 - Critical
-(none or list)
-
-### P1 - High
-- **[file:line]** Brief title
-  - Description of issue
-  - Suggested fix
-
-### P2 - Medium
-...
-
-### P3 - Low
-...
+**审核文件**：X 个文件，Y 行变更
+**总体评估**：[通过 / 需要修改 / 有建议]
 
 ---
 
-## Removal/Iteration Plan
-(if applicable)
+## 发现的问题
 
-## Additional Suggestions
-(optional improvements, not blocking)
+### P0 - 严重
+（无或列表）
+
+### P1 - 高优先级
+- **[文件:行号]** 简要标题
+  - 问题描述
+  - 建议修复方案
+
+### P2 - 中优先级
+...
+
+### P3 - 低优先级
+...
+
+---
+
+## 移除/迭代计划
+（如适用）
+
+## 其他建议
+（可选改进，不阻塞）
 ```
 
-**Inline comments**: Use this format for file-specific findings:
+**行内注释**：使用此格式标记文件特定发现：
 ```
 ::code-comment{file="path/to/file.ts" line="42" severity="P1"}
-Description of the issue and suggested fix.
+问题描述和建议修复。
 ::
 ```
 
-**Clean review**: If no issues found, explicitly state:
-- What was checked
-- Any areas not covered (e.g., "Did not verify database migrations")
-- Residual risks or recommended follow-up tests
+**清洁审核**：如果未发现问题，明确说明：
+- 检查了什么
+- 未覆盖的区域（例如，"未验证数据库迁移"）
+- 残留风险或建议的后续测试
 
 ### 7) Next steps confirmation
 
-After presenting findings, ask user how to proceed:
+展示发现后，询问用户如何继续：
 
 ```markdown
 ---
 
-## Next Steps
+## 下一步操作
 
-I found X issues (P0: _, P1: _, P2: _, P3: _).
+我发现 X 个问题（P0: _, P1: _, P2: _, P3: _）。
 
-**How would you like to proceed?**
+**您希望如何继续？**
 
-1. **Fix all** - I'll implement all suggested fixes
-2. **Fix P0/P1 only** - Address critical and high priority issues
-3. **Fix specific items** - Tell me which issues to fix
-4. **No changes** - Review complete, no implementation needed
+1. **修复全部** - 我将实施所有建议修复
+2. **仅修复 P0/P1** - 解决严重和高优先级问题
+3. **修复特定项** - 告诉我需要修复哪些问题
+4. **不做修改** - 审核完成，无需实施
 
-Please choose an option or provide specific instructions.
+请选择一个选项或提供具体指示。
 ```
 
-**Important**: Do NOT implement any changes until user explicitly confirms. This is a review-first workflow.
+**重要提示**：在用户明确确认之前，不要实施任何修改。这是先审核后实施的工作流程。
 
 ## Resources
 
 ### references/
 
-| File | Purpose |
+| 文件 | 用途 |
 |------|---------|
-| `solid-checklist.md` | SOLID smell prompts and refactor heuristics |
-| `security-checklist.md` | Web/app security and runtime risk checklist |
-| `code-quality-checklist.md` | Error handling, performance, boundary conditions |
-| `removal-plan.md` | Template for deletion candidates and follow-up plan |
+| `solid-checklist.md` | SOLID 异味提示和重构启发式方法 |
+| `security-checklist.md` | Web/应用安全和运行时风险检查清单 |
+| `code-quality-checklist.md` | 错误处理、性能、边界条件 |
+| `removal-plan.md` | 删除候选和后续计划模板 |

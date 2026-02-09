@@ -104,11 +104,11 @@ if user.balance >= amount:  # Check-then-act
     user.balance -= amount
 ```
 
-### Questions to Ask
-- "What happens if two requests hit this code simultaneously?"
-- "Is this operation atomic or can it be interrupted?"
-- "What shared state does this code access?"
-- "How does this behave under high concurrency?"
+### 需要问的问题
+- "如果两个请求同时命中此代码会发生什么？"
+- "此操作是原子的还是可以中断？"
+- "此代码访问什么共享状态？"
+- "这在高并发下如何表现？"
 
 ## Data Integrity
 

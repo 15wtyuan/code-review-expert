@@ -23,10 +23,10 @@
 - [ ] Fallback behavior is defined for recoverable errors
 - [ ] Critical errors trigger alerts/monitoring
 
-### Questions to Ask
-- "What happens when this operation fails?"
-- "Will the caller know something went wrong?"
-- "Is there enough context to debug this error?"
+### 需要问的问题
+- "此操作失败时会发生什么？"
+- "调用者会知道出问题了吗？"
+- "有足够的上下文来调试此错误吗？"
 
 ---
 
@@ -69,11 +69,11 @@
 - **String concatenation in loops**: Use StringBuilder/join instead
 - **Loading large files entirely**: Use streaming instead
 
-### Questions to Ask
-- "What's the time complexity of this operation?"
-- "How does this behave with 10x/100x data?"
-- "Is this result cacheable? Should it be?"
-- "Can this be batched instead of one-by-one?"
+### 需要问的问题
+- "此操作的时间复杂度是多少？"
+- "这在 10 倍/100 倍数据下如何表现？"
+- "此结果可缓存吗？应该缓存吗？"
+- "这可以批处理而不是一个接一个吗？"
 
 ---
 
@@ -123,8 +123,8 @@ const avg = total / count
 if (value) { ... }  // fails for 0, "", false
 ```
 
-### Questions to Ask
-- "What if this is null/undefined?"
-- "What if this collection is empty?"
-- "What's the valid range for this number?"
-- "What happens at the boundaries (0, -1, MAX_INT)?"
+### 需要问的问题
+- "如果这是 null/undefined 会怎样？"
+- "如果此集合为空会怎样？"
+- "此数字的有效范围是什么？"
+- "在边界处会发生什么（0, -1, MAX_INT）？"
